@@ -96,8 +96,8 @@ const aggregatorLoginRoute = require('./routes/aggregator/aggregator_login');
 const ffrTestRoute = require('./routes/aggregator/ffr_test');
 
 // Test 
-const testCapacityEventRoute = require('./routes/test/event');
-const testEndEventRoute = require('./routes/test/cancel_event');
+const testCapacityEventRoute = require('./routes/test/test_event');
+const testEndEventRoute = require('./routes/test/test_cancel_event');
 
 app.use(helmet());
 
@@ -265,8 +265,8 @@ app.use('/aggregator_login', aggregatorLoginRoute);
 app.use('/ffrtest', ffrTestRoute);
 
 // Test
-app.use('/test/event', testCapacityEventRoute);
-app.use('/test/cancelevent', testEndEventRoute);
+app.use('/test/test_event', testCapacityEventRoute);
+app.use('/test/test_cancelevent', testEndEventRoute);
 
 
 
