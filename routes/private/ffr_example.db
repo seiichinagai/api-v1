@@ -1,0 +1,72 @@
+[
+	{
+            "date": "2018-12-01T08:24:35.000Z",
+            "device": "H1gZLMQDQ",
+            "id": "SyeUHSpyyV",
+            "info": {
+                "firmware": 81,
+                "frequency": 59.522
+            },
+            "reason": "ffr",
+            "state": "Active",
+            "type": "trigger"
+        },
+        {
+            "date": "2018-12-01T08:24:35.000Z",
+            "device": "H1gZLMQDQ",
+            "id": "HJUBHT1k4",
+            "info": {
+                "firmware": 81,
+                "on": false,
+                "toggleAt": 0
+            },
+            "reason": "ffr",
+            "state": "Active",
+            "type": "relay"
+        },
+        {
+            "date": "2018-12-01T08:27:08.000Z",
+            "device": "H1gZLMQDQ",
+            "id": "HyxaRBpkJN",
+            "info": {
+                "current": 0,
+                "duration": 900,
+                "firmware": 81,
+                "flow": null,
+                "frequency": 59.96,
+                "on": false,
+                "power": 0,
+                "temperature": 87,
+                "toggleAt": 0,
+                "voltage": 242.13
+            },
+            "reason": "auto",
+            "state": "Active",
+            "type": "update"
+        },
+        {
+            "date": "2018-12-01T08:27:31.000Z",
+            "device": "H1gZLMQDQ",
+            "id": "r1lSg861kV",
+            "info": {
+                "firmware": 81,
+                "frequency": 60.011
+            },
+            "reason": "ffrr",
+            "state": "Active",
+            "type": "trigger"
+        },
+        {
+            "date": "2018-12-01T08:27:31.000Z",
+            "device": "H1gZLMQDQ",
+            "id": "SkBlIpky4",
+            "info": {
+                "firmware": 81,
+                "on": false,
+                "toggleAt": 1543653979
+            },
+            "reason": "ffrr",
+            "state": "Active",
+            "type": "relay"
+        }
+]
