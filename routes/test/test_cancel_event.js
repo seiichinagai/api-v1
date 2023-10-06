@@ -108,6 +108,7 @@ function handlePOST(req, res, next, client_creds, email, pw) {
     next();
   }
   if(validate(cancelevent, req, res, next, messageId)){
+    var awsJSON, encryption;
     /**
      * V2 if awsID forwardAWS() else forward()
      * */
@@ -115,20 +116,61 @@ function handlePOST(req, res, next, client_creds, email, pw) {
     if(awsID < 0){ // parseEventID == -1
       var xmlString = '<root><method>cancel_metagroup_event</method><source>HECO GSDS</source><email>' + email + '</email><password>' + pw
         + '</password><EventId>'+cancelevent['CancelEvent'][0]['EventId']+'</EventId></root>';
-      var encryption = encrypt(xmlString)
+      encryption = encrypt(xmlString)
 
       console.log('Forwarding cancel event to WebDNA.')
-      forward(encryption, messageId, req, res, next, cancelevent['CancelEvent'][0]['Zone']);
+      // forward(encryption, messageId, req, res, next, cancelevent['CancelEvent'][0]['Zone']);
 
     } 
-    else {  // parseEventID == 1
+    // else {  // parseEventID == 1
       console.log('Forwarding cancel event to AWS.')
 
-      var awsJSON = convertToAWSFormat(cancelevent['CancelEvent'][0]['EventId'], cancelevent['CancelEvent'][0]['Zone'])
+      awsJSON = convertToAWSFormat(cancelevent['CancelEvent'][0]['EventId'], cancelevent['CancelEvent'][0]['Zone'])
 
-      forwardAWS(awsJSON, req, res, next, cancelevent['CancelEvent'][0]['Zone'])
-    }
+      // forwardAWS(awsJSON, req, res, next, cancelevent['CancelEvent'][0]['Zone'])
+
+      forward(awsJSON, encryption, req, res, next, event['Event'][0]['Zone'], cancelevent['CancelEvent'][0]['EventId'])
+    // }
   }
+}
+
+function forward(awsJSON, encryption, req, res, next, zone, event_id){
+  const p1 = forwardAWS(awsJSON, req, res, next, zone)
+  const p2 = forwardWebDNA(encryption, event_id, req, res, next, zone)
+
+  Promise.all([p1,p2]).then((responses) => {
+    // respond with 503 if both fail
+
+    if(responses[0] == 503 && responses[1] == 503){
+      res.status(503).json({
+        "returnResult": false,
+        "returnReason": "Unable to fulfill capacity event request",
+        "eventTime": new Date().toISOString(),
+        "objectId":zone
+      });
+      next();
+    } else if (typeof responses[0] == 'object'){
+      res.status(200).json(responses[0]);
+    } else if (typeof responses[1] == 'object'){
+      res.status(200).json(responses[1]);
+    } else {
+      res.status(503).json({
+        "returnResult": false,
+        "returnReason": "Unable to fulfill capacity event request",
+        "eventTime": new Date().toISOString(),
+        "objectId":zone
+      });
+      next();
+    }
+  }).catch(()=>{
+    res.status(503).json({
+      "returnResult": false,
+      "returnReason": "Unable to fulfill capacity event request",
+      "eventTime": new Date().toISOString(),
+      "objectId":zone
+    });
+    next();
+  })
 }
 
 function convertToAWSFormat(eventId, zone){
@@ -208,240 +250,188 @@ function convertAWSFormat(json, zone){
 
 
 function forwardAWS(awsJSON, req, res, next, zone){
-  console.log(new Date().toISOString())
-  // res.status(200).json(awsJSON);
-  fs.readFile('/var/www/html/api.shiftedenergy.com/apiv2/id_token.db', 'utf-8', function(err,token){
-    if(err){
-      console.log('cancelevent id token err: ' + err)
-    }
-
-    var command = '/var/www/html/api.shiftedenergy.com/aws/apiv2/aws_cancel_event.sh ' + token + " '" + JSON.stringify(awsJSON) + "'"
-    console.log(awsJSON)
-
-    exec(command, function (error, stdout, stderr) {
-      var json;
-      try {
-        json = JSON.parse(stdout);
-      } catch (err) {
-        alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; Error parsing V2 response');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Service temporarily unavailable",
-          "eventTime": new Date().toISOString(),
-          "objectId":zone
-        });
-        next();
+  return new Promise((resolve,reject)=>{
+    
+    fs.readFile('/var/www/html/api.shiftedenergy.com/apiv2/id_token.db', 'utf-8', function(err,token){
+      if(err){
+        console.log('cancelevent id token err: ' + err)
       }
-      if (json && error !== null) {
-        alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; exec error');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Service temporarily unavailable",
-          "eventTime": new Date().toISOString(),
-          "objectId":zone
-        });
-        next();
-      }
-      else if (!res.headersSent && json && json.error){
-        alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; V2 error response');
-        res.status(400).json({
-          "returnResult": false,
-          "returnReason": json.error,
-          "eventTime": new Date().toISOString(),
-          "objectId":zone
-        });
-        next();
-      }
-      else if (!res.headersSent && json && !json.eventID){
-        console.log('cancelevent no eventID in aws response: ' + JSON.stringify(json))
-        alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; V2 no eventID');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Unable to fulfill cancel event request",
-          "eventTime": new Date().toISOString(),
-          "objectId":zone
-        });
-        next();
-      } 
-      else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
-        // retrieve new forecast
-        // refresh forecast
-        var oatiJSON = convertAWSFormat(json, zone);
 
-        alert_slack_activity("<@Seiichi> " + '*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID);
-        console.log('*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID)
+      var command = '/var/www/html/api.shiftedenergy.com/aws/apiv2/aws_cancel_event.sh ' + token + " '" + JSON.stringify(awsJSON) + "'"
+      console.log(awsJSON)
 
-        var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecasts.sh';
-        exec(refresh_forecast_command, function(err,get_forecast_stdout){
-          if(err){
-            console.log(err);
-            alert_slack('API error; cancel_event.js; Unable to refresh forecast');
-          }
-          if (!res.headersSent){
-            console.log('Updating forecast... ');
-            console.log('API Server Response: ' + JSON.stringify(oatiJSON))
-            res.status(200).json(convertAWSFormat(json, zone));
-          }
-          if(zone == 'OATI_Oahu'){
+      exec(command, function (error, stdout, stderr) {
+        var json;
+        try {
+          json = JSON.parse(stdout);
+        } catch (err) {
+          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; Error parsing V2 response');
+          resolve(503)
+        }
+        if (json && error !== null) {
+          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; exec error');
+          resolve(503)
+        }
+        else if (!res.headersSent && json && json.error){
+          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; V2 error response');
+          resolve(503)
+        }
+        else if (!res.headersSent && json && !json.eventID){
+          console.log('cancelevent no eventID in aws response: ' + JSON.stringify(json))
+          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; V2 no eventID');
+          resolve(503)
+        } 
+        else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
+          // retrieve new forecast
+          // refresh forecast
+          var oatiJSON = convertAWSFormat(json, zone);
+
+          alert_slack_activity("<@Seiichi> " + '*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID);
+          console.log('*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID)
+
+          var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecasts.sh';
+          exec(refresh_forecast_command, function(err,get_forecast_stdout){
+            if(err){
+              console.log(err);
+              alert_slack('API error; cancel_event.js; Unable to refresh forecast');
+            }
+            if (!res.headersSent){
+              console.log('Updating forecast... ');
+              console.log('API Server Response: ' + JSON.stringify(oatiJSON))
+              resolve(oatiJSON);
+            }
+            if(zone == 'OATI_Oahu'){
+              setTimeout(function(){
+                var send_ffr_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_ffr_forecast.sh ' + zone;
+                exec(send_ffr_forecast_command, function(ffrerr,ffrstdout){
+                  if(ffrerr){
+                    console.log(ffrerr);
+                    alert_slack('API error; cancel_event.js; Unable to send ffr forecast');
+                    next();
+                  }
+                  console.log('Updated ffr forecast sent to OATI');
+                  next();
+                });
+              },30000);
+            }
             setTimeout(function(){
-              var send_ffr_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_ffr_forecast.sh' + zone;
-              exec(send_ffr_forecast_command, function(ffrerr,ffrstdout){
-                if(ffrerr){
-                  console.log(ffrerr);
-                  alert_slack('API error; cancel_event.js; Unable to send ffr forecast');
+              var send_build_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_build_forecast.sh ' + zone;
+              exec(send_build_forecast_command, function(builderr,stdout){
+                if(builderr){
+                  console.log(builderr);
+                  alert_slack('API error; cancel_event.js; Unable to send build forecast');
                   next();
                 }
-                console.log('Updated ffr forecast sent to OATI');
+                console.log('Updated build forecast sent to OATI');
                 next();
               });
             },30000);
-          }
-          setTimeout(function(){
-            var send_build_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_build_forecast.sh' + zone;
-            exec(send_build_forecast_command, function(builderr,stdout){
-              if(builderr){
-                console.log(builderr);
-                alert_slack('API error; cancel_event.js; Unable to send build forecast');
+            setTimeout(function(){
+              var send_reduction_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_reduction_forecast.sh ' + zone;
+              exec(send_reduction_forecast_command, function(reductionerr,stdout){
+                if(reductionerr){
+                  console.log(reductionerr);
+                  alert_slack('API error; cancel_event.js; Unable to send reduction forecast');
+                  next();
+                }
+                console.log('Updated Reduction forecast sent to OATI');
                 next();
-              }
-              console.log('Updated build forecast sent to OATI');
-              next();
-            });
-          },30000);
-          setTimeout(function(){
-            var send_reduction_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_reduction_forecast.sh' + zone;
-            exec(send_reduction_forecast_command, function(reductionerr,stdout){
-              if(reductionerr){
-                console.log(reductionerr);
-                alert_slack('API error; cancel_event.js; Unable to send reduction forecast');
-                next();
-              }
-              console.log('Updated Reduction forecast sent to OATI');
-              next();
-            });
-          },30000);
-        });
-      } 
-      // if event was scheduled for a TEST metagroup or nonOATI metagroup
-      else if (!res.headersSent){
-        res.status(200).json(convertAWSFormat(json, zone));
-      }
-    }).message;
+              });
+            },30000);
+          });
+        } 
+        // if event was scheduled for a TEST metagroup or nonOATI metagroup
+        else if (!res.headersSent){
+          resolve(oatiJSON);
+        }
+      }).message;
+    })
   })
 }
 
-function forward(encryption, event_id, req, res, next, zone){
-  console.log(new Date().toISOString())
-  exec('sh /var/www/html/api.shiftedenergy.com/scripts/api_call.sh' + " " + encryption,
-    function (error, stdout, stderr) {
-      console.log('received response');
-      var json;
-      var decryption;
-      try {
-        json = JSON.parse(stdout);
-      } catch (err) {
-        console.log('Error parsing WebDNA response:\n' + stdout)
-        alert_slack('Failed OATI API call; cancel_event.js; Error parsing WebDNA response');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Service temporarily unavailable.",
-          "eventTime": new Date().toISOString(),
-          "objectId":event_id
-        });
-        next();
-      }
-      if (json && error !== null) {
-        alert_slack('Failed OATI API call; cancel_event.js; exec error');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Service temporarily unavailable..",
-          "eventTime": new Date().toISOString(),
-          "objectId":event_id
-        });
-        next();
-      } else if (!res.headersSent && json && json.message === 'invalid'){
-        alert_slack('Failed OATI API call; cancel_event.js; WebDNA response: invalid');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Internal server error",
-          "eventTime": new Date().toISOString(),
-          "objectId":event_id
-        });
-        next();
-      } else if (!res.headersSent && json && json.message === 'id not found'){
-        alert_slack('Failed OATI API call; cancel_event.js; WebDNA response: Load shift id not found');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Load shift id not found",
-          "eventTime": new Date().toISOString(),
-          "objectId":event_id
-        });
-        next();
-      } else if (!res.headersSent && json && json.message === 'cancel event request failed'){
-        alert_slack('Failed OATI API call; cancel_event.js; WebDNA response: cancel_event request failed');
-        res.status(503).json({
-          "returnResult": false,
-          "returnReason": "Unable to fulfill cancel event request",
-          "eventTime": new Date().toISOString(),
-          "objectId":event_id
-        });
-        next();
-      } else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
-        // retrieve new forecast
-        // refresh forecast
-        var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecast.sh ' + zone;
-        exec(refresh_forecast_command, function(err,get_forecast_stdout){
-          if(err){
-            alert_slack('API error; cancel_event.js; Unable to refresh forecast');
-            console.log(err);
-          }
-          if (!res.headersSent){
-            console.log('Updating forecast... ');
-            res.status(200).json(json);
-          }
-          if(zone == 'OATI_Oahu'){
+function forwardWebDNA(encryption, event_id, req, res, next, zone){
+  return new Promise((resolve,reject)=>{
+    exec('sh /var/www/html/api.shiftedenergy.com/scripts/api_call.sh' + " " + encryption,
+      function (error, stdout, stderr) {
+        console.log('received response');
+        var json;
+        var decryption;
+        try {
+          json = JSON.parse(stdout);
+        } catch (err) {
+          console.log('Error parsing WebDNA response:\n' + stdout)
+          alert_slack('Failed OATI API call; cancel_event.js; Error parsing WebDNA response');
+          resolve(503)
+        }
+        if (json && error !== null) {
+          alert_slack('Failed OATI API call; cancel_event.js; exec error');
+          resolve(503)
+        } else if (!res.headersSent && json && json.message === 'invalid'){
+          alert_slack('Failed OATI API call; cancel_event.js; WebDNA response: invalid');
+          resolve(503)
+        } else if (!res.headersSent && json && json.message === 'id not found'){
+          alert_slack('Failed OATI API call; cancel_event.js; WebDNA response: Load shift id not found');
+          resolve(503)
+        } else if (!res.headersSent && json && json.message === 'cancel event request failed'){
+          alert_slack('Failed OATI API call; cancel_event.js; WebDNA response: cancel_event request failed');
+          resolve(503)
+        } else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
+          // retrieve new forecast
+          // refresh forecast
+          var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecast.sh ' + zone;
+          exec(refresh_forecast_command, function(err,get_forecast_stdout){
+            if(err){
+              alert_slack('API error; cancel_event.js; Unable to refresh forecast');
+              console.log(err);
+            }
+            if (!res.headersSent){
+              console.log('Updating forecast... ');
+              resolve(json);
+            }
+            if(zone == 'OATI_Oahu'){
+              setTimeout(function(){
+                var send_ffr_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_ffr_forecast.sh ' + zone;
+                exec(send_ffr_forecast_command, function(ffrerr,ffrstdout){
+                  if(ffrerr){
+                    console.log(ffrerr);
+                    alert_slack('API error; cancel_event.js; Unable to send ffr forecast');
+                    next();
+                  }
+                  console.log('Updated ffr forecast sent to OATI');
+                  next();
+                });
+              },30000);
+            }
             setTimeout(function(){
-              var send_ffr_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_ffr_forecast.sh ' + zone;
-              exec(send_ffr_forecast_command, function(ffrerr,ffrstdout){
-                if(ffrerr){
-                  console.log(ffrerr);
-                  alert_slack('API error; cancel_event.js; Unable to send ffr forecast');
+              var send_build_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_build_forecast.sh ' + zone;
+              exec(send_build_forecast_command, function(builderr,stdout){
+                if(builderr){
+                  console.log(builderr);
+                  alert_slack('API error; cancel_event.js; Unable to send build forecast');
                   next();
                 }
-                console.log('Updated ffr forecast sent to OATI');
+                console.log('Updated build forecast sent to OATI');
                 next();
               });
             },30000);
-          }
-          setTimeout(function(){
-            var send_build_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_build_forecast.sh ' + zone;
-            exec(send_build_forecast_command, function(builderr,stdout){
-              if(builderr){
-                console.log(builderr);
-                alert_slack('API error; cancel_event.js; Unable to send build forecast');
+            setTimeout(function(){
+              var send_reduction_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_reduction_forecast.sh ' + zone;
+              exec(send_reduction_forecast_command, function(reductionerr,stdout){
+                if(reductionerr){
+                  console.log(reductionerr);
+                  alert_slack('API error; cancel_event.js; Unable to send reduction forecast');
+                  next();
+                }
+                console.log('Updated Reduction forecast sent to OATI');
                 next();
-              }
-              console.log('Updated build forecast sent to OATI');
-              next();
-            });
-          },30000);
-          setTimeout(function(){
-            var send_reduction_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/send_reduction_forecast.sh ' + zone;
-            exec(send_reduction_forecast_command, function(reductionerr,stdout){
-              if(reductionerr){
-                console.log(reductionerr);
-                alert_slack('API error; cancel_event.js; Unable to send reduction forecast');
-                next();
-              }
-              console.log('Updated Reduction forecast sent to OATI');
-              next();
-            });
-          },30000);
-        });
-      } else if (!res.headersSent){
-        res.status(200).json(json);
-      } 
-    }).message;
+              });
+            },30000);
+          });
+        } else if (!res.headersSent){
+          resolve(json);
+        } 
+      }).message;
+  })
 }
 
 function encrypt(string) {
