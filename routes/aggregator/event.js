@@ -43,13 +43,13 @@ router.post('/', (req, res, next) => {
   
   if (!req.headers['content-length']){return next(createError(411, 'Content length required'));}
   if (req.headers['content-type'] != "application/json") {return next(createError(400, 'Invalid Content-Type header'));
-    alert_slack('<@Seiichi> Failed API call; event.js; Invalid Content-Type header, ' + login);
+    alert_slack('Failed API call; event.js; Invalid Content-Type header, ' + login);
   }
   if (login == "oati_api" && password == "LO$fk59#u@7M"){
     console.log('Receiving event request from oati');
     fs.readFile('/var/www/html/api.shiftedenergy.com/reference/client_creds.db', 'utf8', function(err,stdout){
       if (err) {
-        alert_slack('<@Seiichi> Failed OATI API call; event.js; error reading client_creds.db');
+        alert_slack('Failed OATI API call; event.js; error reading client_creds.db');
         res.status(503).json({
           "returnResult": false,
           "returnReason": "Service temporarily unavailable",
@@ -60,7 +60,7 @@ router.post('/', (req, res, next) => {
       } else {
         fs.readFile('/var/www/html/api.shiftedenergy.com/reference/creds.db', 'utf8', function(cred_err,creds){
           if (cred_err) {
-            alert_slack('<@Seiichi> Failed OATI API call; event.js; error reading creds.db');
+            alert_slack('Failed OATI API call; event.js; error reading creds.db');
             var stream = fs.createWriteStream(error_log, {'flags': 'a'});
             stream.write(new Date() + '\t' + err + '\n');
             stream.end();
@@ -101,7 +101,7 @@ async function handlePOST(req, res, next, client_creds, email, pw) {
     timestamp = req.body.Header.TimeStamp;
   } else {
     console.log('missing data 1 ' + JSON.stringify(event, null, 2));
-    alert_slack('<@Seiichi> Failed OATI API call; event.js; JSON Header Attribute Incomplete');
+    alert_slack('Failed OATI API call; event.js; JSON Header Attribute Incomplete');
     res.status(400).json({
       "returnResult": false,
       "returnReason": "JSON Header Attribute Incomplete",
@@ -114,7 +114,7 @@ async function handlePOST(req, res, next, client_creds, email, pw) {
     event['Event'] = req.body.Event;
   } else {
     console.log('missing data 2 ' + JSON.stringify(event, null, 2));
-    alert_slack('<@Seiichi> Failed OATI API call; event.js; Missing Event Attribute');
+    alert_slack('Failed OATI API call; event.js; Missing Event Attribute');
     res.status(400).json({
       "returnResult": false,
       "returnReason": "Missing Event Attribute",
@@ -215,7 +215,7 @@ function parseEventID(eventID){
     }
   } catch (error){
     console.log(error);
-    alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; Event ID unparsable');
+    alert_slack('Failed OATI API call; cancel_event.js; Event ID unparsable');
   }
 }
 
@@ -275,7 +275,7 @@ function validate_format(event, res, next){
   event['Event'].forEach(function(event){
     if(!event['Zone'] || (event['Zone']!='OATI_Oahu' && event['Zone']!='OATI_Maui' && event['Zone']!='OATI_Oahu_Test' && event['Zone']!='OATI_Mg_Test' && event['Zone']!='OATI_Maui_Test' && event['Zone']!='Oahu_Test_Fleet' && event['Zone']!='OATI_Oahu_no_psa') || !event['CustomerType'] || !event['GridService'] || (event['GridService']!='Capacity Build Aggregator' && event['GridService']!='Capacity Reduction Aggregator') || !event['Data']){
       console.log('missing data 3 ' + JSON.stringify(event, null, 2));
-      alert_slack('<@Seiichi> Failed OATI API call; event.js; Event Attribute Incomplete 1');
+      alert_slack('Failed OATI API call; event.js; Event Attribute Incomplete 1');
       res.status(400).json({
         "returnResult": false,
         "returnReason": "Event Attribute Incomplete",
@@ -293,7 +293,7 @@ function validate_format(event, res, next){
       event['Data'].forEach(function(data){
         if(!data['StartDateTime'] || !data['EndDateTime']){
           console.log('missing data 4 ' + JSON.stringify(event, null, 2));
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; JSON Event Attribute Incomplete 2');
+          alert_slack('Failed OATI API call; event.js; JSON Event Attribute Incomplete 2');
           res.status(400).json({
             "returnResult": false,
             "returnReason": "JSON Event Attribute Incomplete",
@@ -308,7 +308,7 @@ function validate_format(event, res, next){
         }
         if (!(StartDateTime > 0) || !(EndDateTime > 0)) {
           console.log('Invalid DateTime ' + JSON.stringify(event, null, 2));
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; Invalid DateTime');
+          alert_slack('Failed OATI API call; event.js; Invalid DateTime');
           res.status(400).json({
             "returnResult": false,
             "returnReason": "Invalid DateTime",
@@ -319,7 +319,7 @@ function validate_format(event, res, next){
           result = false;
         } else if (EndDateTime - StartDateTime <= 0) {
           console.log('Invalid start/end ' + JSON.stringify(event, null, 2));
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; StartDateTime must precede EndDateTime');
+          alert_slack('Failed OATI API call; event.js; StartDateTime must precede EndDateTime');
           res.status(400).json({
             "returnResult": false,
             "returnReason": "StartDateTime must precede EndDateTime",
@@ -331,7 +331,7 @@ function validate_format(event, res, next){
         } else if ((new Date()).getTime() > StartDateTime.getTime() + 3600000) {
           // v2 update
           console.log('Event request exceeded late start allowance ' + JSON.stringify(event, null, 2));
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; Event request exceeded late start allowance');
+          alert_slack('Failed OATI API call; event.js; Event request exceeded late start allowance');
           res.status(400).json({
             "returnResult": false,
             "returnReason": "Event request exceeded late start allowance",
@@ -343,7 +343,7 @@ function validate_format(event, res, next){
         } 
         // else if (StartDateTime - now <= 0) {
         //   console.log('Error: past dates ' + JSON.stringify(event, null, 2));
-        //   alert_slack('<@Seiichi> Failed OATI API call; event.js; Event requests cannot be made for a past date');
+        //   alert_slack('Failed OATI API call; event.js; Event requests cannot be made for a past date');
         //   res.status(400).json({
         //     "returnResult": false,
         //     "returnReason": "Event requests cannot be made for a past date",
@@ -355,7 +355,7 @@ function validate_format(event, res, next){
         // } 
         else if (StartDateTime - now < 10800000 && event['GridService'] == 'Capacity Build Aggregator') {
           console.log('Error: Not 3hrs in advance ' + JSON.stringify(event, null, 2));
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; Capacity Build Events must be made at least three hours in advance');
+          alert_slack('Failed OATI API call; event.js; Capacity Build Events must be made at least three hours in advance');
           res.status(400).json({
             "returnResult": false,
             "returnReason": "Capacity Build Events must be made at least three hours in advance",
@@ -366,7 +366,7 @@ function validate_format(event, res, next){
           result = false;
         } else if (EndDateTime - StartDateTime > 14400000) {
           console.log('Invalid duration ' + JSON.stringify(event, null, 2));
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; Invalid duration');
+          alert_slack('Failed OATI API call; event.js; Invalid duration');
           res.status(400).json({
             "returnResult": false,
             "returnReason": "Capacity Events may last 0 to 4 hours",
@@ -429,23 +429,23 @@ function forwardAWS(awsJSON, req, res, next, zone, extension){
         try {
           json = JSON.parse(stdout);
         } catch (err) {
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; Error parsing V2 response');
+          alert_slack('Failed OATI API call; event.js; Error parsing V2 response');
           console.log('Failed OATI API call; event.js; Error parsing V2 response');
 
           resolve(503)
         }
         if (json && error !== null) {
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; exec error');
+          alert_slack('Failed OATI API call; event.js; exec error');
           console.log('Failed OATI API call; event.js; exec error');
           resolve(503)
         }
         else if (!res.headersSent && json && json.error){
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; V2 error response');
+          alert_slack('Failed OATI API call; event.js; V2 error response');
           console.log('V2 error response: ' + json.error)
           resolve(503)
         }
         else if (!res.headersSent && json && !json.eventID){
-          alert_slack('<@Seiichi> Failed OATI API call; event.js; V2 no eventID');
+          alert_slack('Failed OATI API call; event.js; V2 no eventID');
           console.log('Failed OATI API call; event.js; V2 no eventID');
           resolve(503)
         } 
@@ -454,7 +454,7 @@ function forwardAWS(awsJSON, req, res, next, zone, extension){
           // refresh forecast
           var oatiJSON = convertAWSFormat(json, zone);
 
-          alert_slack_activity("<@Seiichi> " + '*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID);
+          alert_slack_activity("" + '*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID);
           console.log('*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID)
 
           var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecasts.sh';
@@ -535,17 +535,17 @@ function forwardWebDNA(xmlString, encryption, req, res, next, zone, grid_service
         // alert_slack_activity('*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + stdout);
         console.log('*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + stdout)
       } catch (err) {
-        alert_slack('<@Seiichi> Failed OATI API call; event.js; Error parsing WebDNA response');
+        alert_slack('Failed OATI API call; event.js; Error parsing WebDNA response');
         resolve(503)
       }
       if (json && error !== null) {
-        alert_slack('<@Seiichi> Failed OATI API call; event.js; exec error');
+        alert_slack('Failed OATI API call; event.js; exec error');
         resolve(503)
       } else if (!res.headersSent && json && json.message === 'invalid'){
-        alert_slack('<@Seiichi> Failed OATI API call; event.js; WebDNA response: invalid');
+        alert_slack('Failed OATI API call; event.js; WebDNA response: invalid');
         resolve(503)
       } else if (!res.headersSent && json && json.message === 'capactiy event request failed'){
-        alert_slack('<@Seiichi> Failed OATI API call; event.js; WebDNA response: capactiy event request failed');
+        alert_slack('Failed OATI API call; event.js; WebDNA response: capactiy event request failed');
         resolve(503)
       } else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
         // retrieve new forecast
@@ -609,7 +609,7 @@ function forwardWebDNA(xmlString, encryption, req, res, next, zone, grid_service
 function alert_slack(string){
   // alert slack
   var json = {
-    "text": string
+    "text": '<@URNTVNK7E> ' + string
   }
   var slack_command = '/var/www/html/api.shiftedenergy.com/scripts/slack_err_alert.sh ' + "'" + JSON.stringify(json) + "'";
   exec(slack_command,function(slackerr,slackresponse){

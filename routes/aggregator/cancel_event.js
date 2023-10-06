@@ -199,7 +199,7 @@ function parseEventID(eventID){
     }
   } catch (error){
     console.log(error);
-    alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; Event ID unparsable');
+    alert_slack('Failed OATI API call; cancel_event.js; Event ID unparsable');
   }
 }
 
@@ -271,22 +271,22 @@ function forwardAWS(awsJSON, req, res, next, zone){
           json = JSON.parse(stdout);
         } catch (err) {
           console.log('Failed OATI API call; cancel_event.js; Error parsing V2 response')
-          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; Error parsing V2 response');
+          alert_slack('Failed OATI API call; cancel_event.js; Error parsing V2 response');
           resolve(503)
         }
         if (json && error !== null) {
           console.log('Failed OATI API call; cancel_event.js; exec error')
-          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; exec error');
+          alert_slack('Failed OATI API call; cancel_event.js; exec error');
           resolve(503)
         }
         else if (!res.headersSent && json && json.error){
           console.log('Failed OATI API call; cancel_event.js; V2 error response')
-          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; V2 error response');
+          alert_slack('Failed OATI API call; cancel_event.js; V2 error response');
           resolve(503)
         }
         else if (!res.headersSent && json && !json.eventID){
           console.log('cancelevent no eventID in aws response: ' + JSON.stringify(json))
-          alert_slack('<@Seiichi> Failed OATI API call; cancel_event.js; V2 no eventID');
+          alert_slack('Failed OATI API call; cancel_event.js; V2 no eventID');
           resolve(503)
         } 
         else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
@@ -294,7 +294,7 @@ function forwardAWS(awsJSON, req, res, next, zone){
           // refresh forecast
           var oatiJSON = convertAWSFormat(json, zone);
 
-          alert_slack_activity("<@Seiichi> " + '*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID);
+          alert_slack_activity("" + '*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID);
           console.log('*OATI event processed:*\n' + JSON.stringify(req.body) + '\nEventID:\n' + oatiJSON.objectID)
 
           var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecasts.sh';
@@ -462,7 +462,7 @@ function pad(text) {
 function alert_slack(string){
   // alert slack
   var json = {
-    "text": string
+    "text": '<@URNTVNK7E> ' + string
   }
   var slack_command = '/var/www/html/api.shiftedenergy.com/scripts/slack_err_alert.sh ' + "'" + JSON.stringify(json) + "'";
   exec(slack_command,function(slackerr,slackresponse){
