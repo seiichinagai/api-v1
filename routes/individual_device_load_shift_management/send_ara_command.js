@@ -169,8 +169,10 @@ function get_authorization_json(req, res, next) {
         response = JSON.parse(stdout);
         //response = JSON.parse(decryption);
       } catch (err) {
-        log(err, 'user: ' + req.body.root.user.email + ' error parsing WebDNA Response');
-        log(req.body);
+        if(req.body.root.user.email != 'andrew.costinett@pnnl.gov') {
+          log(err, 'user: ' + req.body.root.user.email + ' error parsing WebDNA Response');
+          console.log(req.body);
+        }
         res.status(503).json({
           error: 'Service temporarily unavailable' // it's getting hung up here
         });

@@ -157,8 +157,10 @@ function get_device_telemetry_json(req, res) {
             // console.log(stdout);
             //response = JSON.parse(decryption);
           } catch (err) {
-            alert_slack(err);
-            console.log(stdout);
+            if(req.body.user.email != 'andrew.costinett@pnnl.gov'){
+              alert_slack(err);
+              console.log(stdout);
+            }
             res.status(503).json({
               error: 'Service temporarily unavailable'
             });
