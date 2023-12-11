@@ -387,7 +387,7 @@ function forwardWebDNA(encryption, event_id, req, res, next, zone){
         } else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
           // retrieve new forecast
           // refresh forecast
-          var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecast.sh ' + zone;
+          var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecasts.sh ' + zone;
           exec(refresh_forecast_command, function(err,get_forecast_stdout){
             if(err){
               alert_slack('API error; cancel_event.js; Unable to refresh forecast');

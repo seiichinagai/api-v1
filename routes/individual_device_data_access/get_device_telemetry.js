@@ -145,8 +145,8 @@ function get_device_telemetry_json(req, res) {
         response = JSON.parse(stdout);
         //response = JSON.parse(decryption);
       } catch (err) {
-        alert_slack(err);
-        // console.log(stdout);
+        console.log(stdout);
+        console.log('user: ' + req.body.root.user.email + ' error parsing WebDNA Response');
         res.status(503).json({
           error: 'Service temporarily unavailable'
         });

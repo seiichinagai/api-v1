@@ -108,7 +108,7 @@ function get_device_info_json(req, res) {
         //response = JSON.parse(decryption);
       } catch (err) {
         console.log(stdout);
-        log(err, 'user: ' + req.body.root.user.email + ' error parsing WebDNA Response');
+        console.log('user: ' + req.body.root.user.email + ' error parsing WebDNA Response');
         res.status(503).json({
           error: 'Service temporarily unavailable'
         });
@@ -120,7 +120,7 @@ function get_device_info_json(req, res) {
           error: 'Service temporarily unavailable'
         });
       } else if (response && response.message == 'invalid') {
-        log(null, 'user: ' + req.body.root.user.email + ' authentication invalid')
+        console.log('API get_device_info user: ' + req.body.root.user.email + ' authentication invalid')
         res.status(401).json({
           error: 'Authentication invalid'
         });

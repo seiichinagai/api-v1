@@ -395,9 +395,11 @@ function convertAWSFormat(json, zone){
     metagroupId = '0';
     console.log('Unexpected zone. ' + zone)
   }
-
-  eventIdString = json.eventID.substring(0, json.eventID.indexOf('_')).split('-').join('').split('T').join('').split(':').join('') + metagroupId
-
+  try {
+    eventIdString = json.eventID.substring(0, json.eventID.indexOf('_')).split('-').join('').split('T').join('').split(':').join('') + metagroupId
+  } catch (err){
+    alert_slack('<@U03UNJUEK1Q> error parsing AWS V2 Response.')
+  }
   if(parseInt(eventIdString) == NaN){
     console.log('eventIdString is not a number:' + eventIdString)
   }
@@ -429,7 +431,7 @@ function forwardAWS(awsJSON, req, res, next, zone, extension){
         try {
           json = JSON.parse(stdout);
         } catch (err) {
-          alert_slack('Failed OATI API call; event.js; Error parsing V2 response');
+          alert_slack('<@U03UNJUEK1Q> Failed OATI API call; event.js; Error parsing V2 AWS response');
           console.log('Failed OATI API call; event.js; Error parsing V2 response');
 
           resolve(503)
@@ -550,7 +552,7 @@ function forwardWebDNA(xmlString, encryption, req, res, next, zone, grid_service
       } else if (!res.headersSent && (zone == 'OATI_Oahu' || zone == 'OATI_Maui')){
         // retrieve new forecast
         // refresh forecast
-        var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecast.sh ' + zone;
+        var refresh_forecast_command = '/var/www/html/api.shiftedenergy.com/oati/v2_forecast/src/run_get_forecasts.sh ' + zone;
         exec(refresh_forecast_command, function(err,get_forecast_stdout){
           if(err){
             console.log(err);
