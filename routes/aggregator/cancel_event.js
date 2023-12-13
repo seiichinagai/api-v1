@@ -114,7 +114,8 @@ function handlePOST(req, res, next, client_creds, email, pw) {
      * */
     var awsID = parseEventID(cancelevent['CancelEvent'][0]['EventId'])
     if(awsID < 0){ // parseEventID == -1
-      console.log('WebDNA Event ID found')
+      alert_slack('Event ID, ' + awsID + ' does not match AWS ID format.')
+      // console.log('WebDNA Event ID found')
       var xmlString = '<root><method>cancel_metagroup_event</method><source>HECO GSDS</source><email>' + email + '</email><password>' + pw
         + '</password><EventId>'+cancelevent['CancelEvent'][0]['EventId']+'</EventId></root>';
       encryption = encrypt(xmlString)
@@ -137,14 +138,24 @@ function handlePOST(req, res, next, client_creds, email, pw) {
 
 function forward(awsJSON, encryption, req, res, next, zone, event_id){
   const p1 = forwardAWS(awsJSON, req, res, next, zone)
-  const p2 = forwardWebDNA(encryption, event_id, req, res, next, zone)
+  // const p2 = forwardWebDNA(encryption, event_id, req, res, next, zone)
 
-  Promise.all([p1,p2]).then((responses) => {
+  Promise.all([p1]).then((responses) => {
 
     console.log(JSON.stringify(responses))
 
     // respond with 503 if both fail
-    if(responses[0] == 503 && responses[1] == 503){
+    if(responses[0] == 503){
+      alert_slack('AWS 503 Error')
+      res.status(503).json({
+        "returnResult": false,
+        "returnReason": "Unable to fulfill capacity event request",
+        "eventTime": new Date().toISOString(),
+        "objectId":zone
+      });
+      next();
+    } else if (typeof responses[0] == 'object' && 'error' in responses[0]){
+      alert_slack('AWS error response: ' + responses[0])
       res.status(503).json({
         "returnResult": false,
         "returnReason": "Unable to fulfill capacity event request",
@@ -154,9 +165,8 @@ function forward(awsJSON, encryption, req, res, next, zone, event_id){
       next();
     } else if (typeof responses[0] == 'object'){
       res.status(200).json(responses[0]);
-    } else if (typeof responses[1] == 'object'){
-      res.status(200).json(responses[1]);
     } else {
+      alert_slack('Error parsing AWS V2 Response. Not an object')
       res.status(503).json({
         "returnResult": false,
         "returnReason": "Unable to fulfill capacity event request",
@@ -166,6 +176,7 @@ function forward(awsJSON, encryption, req, res, next, zone, event_id){
       next();
     }
   }).catch(()=>{
+    alert_slack('Uncaught Error')
     res.status(503).json({
       "returnResult": false,
       "returnReason": "Unable to fulfill capacity event request",
@@ -460,9 +471,10 @@ function pad(text) {
 }
 
 function alert_slack(string){
+  console.log(string)
   // alert slack
   var json = {
-    "text": '<@URNTVNK7E> ' + string
+    "text": '<@URNTVNK7E> OATI Cancel Event. ' + string
   }
   var slack_command = '/var/www/html/api.shiftedenergy.com/scripts/slack_err_alert.sh ' + "'" + JSON.stringify(json) + "'";
   exec(slack_command,function(slackerr,slackresponse){
