@@ -19,6 +19,11 @@ router.get('/', (req, res, next) => {
     if(req.param('code'))
       stream.write('Code: ' + req.param('code') + '\n')
     stream.end();
+  } else {
+    var stream = fs.createWriteStream("/var/www/html/api.shiftedenergy.com/logs/redirect.log", {flags:'a'});
+    stream.write('\n' + new Date().toISOString() + '\n')
+    stream.write(req.body)
+    stream.end();
   }
   res.status(200).json({
     message: '200'
