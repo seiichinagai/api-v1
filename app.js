@@ -41,6 +41,7 @@ const redirectURIRoute = require('./routes/private/redirect_uri');
 
 // Authentication
 const validateUserRoute = require('./routes/authentication/validate_user');
+const teslaAuthRoute = require('./routes/authentication/tesla');
 
 
 // Individual Device Data Access
@@ -216,6 +217,7 @@ app.use('/redirect_uri', redirectURIRoute);
 
 // Authentication
 app.use('/validate_user', validateUserRoute);
+app.use('/auth/tesla', teslaAuthRoute);
 
 // Individual Device Data Access
 app.use('/get_device_forecast', deviceForecastRoute);
@@ -268,15 +270,17 @@ app.use('/ffrtest', ffrTestRoute);
 app.use('/test/test_event', testCapacityEventRoute);
 app.use('/test/test_cancelevent', testEndEventRoute);
 
-
+// public
+app.use('/', express.static('/var/www/html/api.shiftedenergy.com/public'))
 
 
 
 app.set('trust proxy', true);
 
-app.get('/', function(req, res) {
-  res.sendFile('/var/www/html/api.shiftedenergy.com/views/index.html');
-});
+// app.get('/', function(req, res) {
+//   res.sendFile('/var/www/html/api.shiftedenergy.com/views/index.html');
+// });
+
 
 // error handling
 app.use((req, res, next) => {

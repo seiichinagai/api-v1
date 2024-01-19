@@ -9,25 +9,38 @@ const js2xml = require('js2xmlparser');
 
 // POST
 router.get('/', (req, res, next) => {
-  if(req.param && (req.param('state') || req.param('code') || req.param('error'))) {
-    var stream = fs.createWriteStream("/var/www/html/api.shiftedenergy.com/logs/redirect.log", {flags:'a'});
-    stream.write('\n' + new Date().toISOString() + '\n')
-    if(req.param('error'))
-      stream.write('Error: ' + req.param('error') + '\n')
-    if(req.param('state'))
-      stream.write('Client: ' + req.param('state') + '\n')
-    if(req.param('code'))
-      stream.write('Code: ' + req.param('code') + '\n')
-    stream.end();
-  } else {
-    var stream = fs.createWriteStream("/var/www/html/api.shiftedenergy.com/logs/redirect.log", {flags:'a'});
-    stream.write('\n' + new Date().toISOString() + '\n')
-    stream.write(req.body)
-    stream.end();
+  try{
+    if(req.param && (req.param('state') || req.param('code') || req.param('error'))) {
+      var stream = fs.createWriteStream("/var/www/html/api.shiftedenergy.com/logs/redirect.log", {flags:'a'});
+      stream.write('\n' + new Date().toISOString() + '\n')
+      if(req.param('error'))
+        stream.write('Error: ' + req.param('error') + '\n')
+      if(req.param('state'))
+        stream.write('Client: ' + req.param('state') + '\n')
+      if(req.param('code'))
+        stream.write('Code: ' + req.param('code') + '\n')
+      stream.end();
+    } else {
+      var stream = fs.createWriteStream("/var/www/html/api.shiftedenergy.com/logs/redirect.log", {flags:'a'});
+      stream.write('\n' + new Date().toISOString() + '\n')
+      stream.write(req.body)
+      stream.end();
+    }
+    res.status(200).json({
+      message: '200'
+    });
+  } catch(error){
+    if (!res.headersSent){
+      var stream = fs.createWriteStream("/var/www/html/api.shiftedenergy.com/logs/redirect.log", {flags:'a'});
+      stream.write('\n' + new Date().toISOString() + '\n')
+      stream.write('\n' + 'Request body: ' + JSON.stringify(req.body) + '\n')
+      stream.write('\n' + 'Error: ' + error + '\n')
+      stream.end();
+      res.status(503).json({
+        error: 'Service temporarily unavailable'
+      });
+    }
   }
-  res.status(200).json({
-    message: '200'
-  });
 });
 
 module.exports = router;
