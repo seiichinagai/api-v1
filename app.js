@@ -277,9 +277,9 @@ app.use('/', express.static('/var/www/html/api.shiftedenergy.com/public'))
 
 app.set('trust proxy', true);
 
-// app.get('/', function(req, res) {
-//   res.sendFile('/var/www/html/api.shiftedenergy.com/views/index.html');
-// });
+app.get('/', function(req, res) {
+  res.sendFile('/var/www/html/api.shiftedenergy.com/views/index.html');
+});
 
 
 // error handling
